@@ -39,7 +39,7 @@ class DocumentExtractor:
                 # with Vietnamese scanned documents.
                 data = {
                     "strategy": "hi_res",
-                    "languages": "eng,vie"
+                    "languages": ["eng", "vie"]
                 }
                 
                 with httpx.Client(timeout=600) as client:
