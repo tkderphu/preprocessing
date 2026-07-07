@@ -87,9 +87,22 @@ def _is_standalone(line: str) -> bool:
 # Step 1 — Normalize
 # ─────────────────────────────────────────────────────────────────────────────
 
+_PAGE_NUMBER = re.compile(r'^(\d{1,3}|[Tt]rang\s*\d+|[Pp]age\s*\d+)$')
+
 def _normalize(text: str) -> list[str]:
     lines = text.replace('\r\n', '\n').replace('\r', '\n').split('\n')
-    return [line.rstrip() for line in lines if not _is_garbage(line)]
+    result = []
+    for line in lines:
+        s = line.rstrip()
+        stripped = s.strip()
+        # Skip garbage lines
+        if _is_garbage(s):
+            continue
+        # Skip lone page numbers
+        if _PAGE_NUMBER.match(stripped):
+            continue
+        result.append(s)
+    return result
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -176,33 +189,30 @@ def _merge_title_lines(lines: list[str]) -> list[str]:
 
 def _try_build_actor_table(lines: list[str], start: int) -> tuple[list[str], int] | None:
     """
-    Detect and format an Actor/Function style 2-column table.
+    Detect and format a 2- or 3-column table.
 
-    Expected structure after a '### Bảng' heading:
-        ColHeader1          (e.g. "Actor")
-        ColHeader2          (e.g. "Chức năng")
-        RowHeader
-        - item
-        - item
-        RowHeader
-        - item
-        ...
+    Detects 3 consecutive short non-list lines as column headers,
+    then rows alternating between row-header and list items.
     """
     n = len(lines)
     if start + 3 >= n:
         return None
 
+    def _is_col_header(s: str) -> bool:
+        return bool(s) and len(s.split()) <= 5 and not _is_list_item(s) \
+               and not _is_heading(s) and not _REDACTED_TAG.match(s)
+
     col1 = lines[start].strip()
     col2 = lines[start + 1].strip() if start + 1 < n else ""
 
-    # Column headers must be short, non-list, non-heading, non-redacted
-    for col in (col1, col2):
-        if not col or len(col.split()) > 5:
-            return None
-        if _is_list_item(col) or _is_heading(col) or _REDACTED_TAG.match(col):
-            return None
+    if not _is_col_header(col1) or not _is_col_header(col2):
+        return None
 
-    i = start + 2
+    # Check for optional 3rd column header
+    col3 = lines[start + 2].strip() if start + 2 < n else ""
+    three_cols = _is_col_header(col3) and col3 not in (col1, col2)
+    i = start + 3 if three_cols else start + 2
+
     rows: list[tuple[str, list[str]]] = []
 
     while i < n:
@@ -247,11 +257,19 @@ def _try_build_actor_table(lines: list[str], start: int) -> tuple[list[str], int
     if len(rows) < 2:
         return None
 
-    # Build Markdown table
-    md = [f"| {col1} | {col2} |", "|---|---|"]
-    for header, items in rows:
-        cell = ' / '.join(items) if items else '—'
-        md.append(f"| **{header}** | {cell} |")
+    # Build Markdown table (2 or 3 columns)
+    if three_cols:
+        md = [f"| {col1} | {col2} | {col3} |", "|---|---|---|"]
+        for header, items in rows:
+            # For 3-col: row header is col1, items are col2+col3 (split by heuristic)
+            # Let LLM fix the column assignment; we just put content in col2 for now
+            cell2 = ' / '.join(items) if items else '—'
+            md.append(f"| **{header}** | {cell2} | |")
+    else:
+        md = [f"| {col1} | {col2} |", "|---|---|"]
+        for header, items in rows:
+            cell = ' / '.join(items) if items else '—'
+            md.append(f"| **{header}** | {cell} |")
 
     return md, i
 
