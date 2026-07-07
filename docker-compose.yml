@@ -105,6 +105,8 @@ services:
     container_name: doc_intelligence_unstructured
     ports:
       - "8001:8000"  # map host 8001 to container 8000 to avoid conflicting with our API
+    environment:
+      - HF_TOKEN=${HF_TOKEN}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/healthcheck"]
