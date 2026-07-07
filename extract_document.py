@@ -51,6 +51,9 @@ def main() -> None:
             
             print(f"\n✓ Extraction complete. Text saved to: {output_file}")
             print(f"  Total characters extracted: {len(text)}")
+            print("\n--- Extracted Text Preview ---\n")
+            print(text[:1500] + ("\n... [truncated]" if len(text) > 1500 else ""))
+            print("\n------------------------------")
         else:
             print("\n⚠ No text could be extracted from the file.")
             sys.exit(2)

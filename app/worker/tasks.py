@@ -92,6 +92,7 @@ def process_document_job(self: Task, job_message_json: str) -> dict:
             raise ValueError("Extraction returned empty text.")
 
         logger.info("Extraction complete: %d chars (type=%s)", len(raw_text), content_type)
+        logger.info("--- RAW EXTRACTED TEXT PREVIEW ---\n%s\n----------------------------------", raw_text[:1500])
 
         # ── 2. Redact PII ────────────────────────────────────────────────────
         self.update_state(state="PROGRESS", meta={"step": "redacting"})
