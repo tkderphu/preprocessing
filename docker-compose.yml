@@ -1,0 +1,148 @@
+version: "3.9"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Document Intelligence Pipeline — Docker Compose
+# ──────────────────────────────────────────────────────────────────────────────
+# Services:
+#   api       → FastAPI REST API (port 8000)
+#   worker    → Celery ML worker (RabbitMQ consumer)
+#   rabbitmq  → Message broker (AMQP 5672, Management UI 15672)
+#   redis     → Celery result backend (port 6379)
+#   tika      → Apache Tika server (port 9998)
+#   ollama    → Qwen2.5 LLM server (port 11434)
+# ──────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── FastAPI ──────────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    container_name: doc_intelligence_api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672//
+      - TIKA_SERVER_URL=http://tika:9998
+      - OLLAMA_BASE_URL=http://ollama:11434
+    volumes:
+      - uploads_data:/app/app/storage/uploads
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── Celery Worker ─────────────────────────────────────────────────────────────
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.worker
+    container_name: doc_intelligence_worker
+    env_file:
+      - .env
+    environment:
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - TIKA_SERVER_URL=http://tika:9998
+      - OLLAMA_BASE_URL=http://ollama:11434
+    volumes:
+      - uploads_data:/app/app/storage/uploads
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      tika:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    restart: unless-stopped
+    # Scale workers with: docker compose up --scale worker=3
+    deploy:
+      resources:
+        limits:
+          memory: 8G    # Whisper + GLiNER models need RAM
+
+  # ── RabbitMQ ─────────────────────────────────────────────────────────────────
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: doc_intelligence_rabbitmq
+    ports:
+      - "5672:5672"    # AMQP
+      - "15672:15672"  # Management UI → http://localhost:15672 (guest/guest)
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  # ── Redis (Celery result backend) ─────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: doc_intelligence_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Apache Tika ───────────────────────────────────────────────────────────────
+  tika:
+    image: apache/tika:latest-full
+    container_name: doc_intelligence_tika
+    ports:
+      - "9998:9998"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9998/tika"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+
+  # ── Ollama (Qwen2.5 LLM) ─────────────────────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: doc_intelligence_ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    restart: unless-stopped
+    # Uncomment for GPU support (requires NVIDIA Container Toolkit):
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+# ── Volumes ───────────────────────────────────────────────────────────────────
+volumes:
+  uploads_data:
+  rabbitmq_data:
+  redis_data:
+  ollama_models:

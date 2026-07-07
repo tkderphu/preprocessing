@@ -1,0 +1,844 @@
+HỌC 
+  
+VIỆN 
+  
+CÔNG 
+  
+NGHỆ 
+  
+BƯU 
+  
+CHÍNH 
+  
+VIỄN 
+  
+THÔNG 
+  
+KHOA  
+CÔNG  
+NGHỆ  
+THÔNG  
+TIN  
+  
+  
+  
+  
+  
+  
+Kiến 
+  
+trúc 
+  
+và 
+  
+phát 
+  
+triển 
+  
+phần 
+  
+mềm 
+  
+Assign 
+  5   
+  
+Lớp 
+  
+chuyên  
+ngành  
+:  
+CNPM05 
+  
+Họ  
+và  
+tên  
+:  
+Phan Thanh Tân 
+  
+ 
+ 
+ 
+  
+Mã  
+sinh  
+viên 
+  
+:  
+B22DCCN718  
+  
+  
+  
+  
+  
+Hà 
+  
+Nội 
+  
+– 
+  
+2026
+
+ASSIGNMENT 5  
+1. Đề bài  
+Mục tiêu  
+● Chuyển đổi hệ thống BookStore dạng monolithic thành kiến trúc microservices.  
+● Sử dụng Django REST Framework để triển khai các service.  
+Yêu cầu chức năng chính  
+● Đăng ký khách hàng tự động tạo giỏ hàng.  
+● Staff quản lý sách (thêm, sửa, xóa, cập nhật).  
+● Khách hàng quản lý giỏ hàng (thêm sách, xem giỏ, cập nhật).  
+● Khi đặt hàng, hệ thống kích hoạt thanh toán và giao hàng, khách hàng chọn phương 
+thức thanh toán và vận chuyển.  
+Yêu cầu kỹ thuật  
+● Sử dụng Django REST Framework.  
+● Các service giao tiếp với nhau qua REST API.  
+● Sử dụng Docker Compose để triển khai.  
+● Mỗi service có database riêng (independent databases).  
+  
+  
+2. Kiến trúc  
+2.1 Sơ đồ kiến trúc chung  
+  
+Các thành phần:
+
+● Client: Đại diện cho phía người dùng (có thể là ứng dụng di động hoặc trình duyệt 
+web), nơi gửi yêu cầu ban đầu.  
+● API Gateway: Đóng vai trò là "cổng ra vào" duy nhất. Thay vì Client gọi trực tiếp 
+từng dịch vụ nhỏ, nó sẽ gửi mọi yêu cầu qua đây. API Gateway sẽ chịu trách nhiệm 
+điều hướng (routing), bảo mật và quản lý tải.  
+● Các Dịch vụ nghiệp vụ (Microservices): Hệ thống được chia nhỏ thành nhiều dịch 
+vụ độc lập, mỗi dịch vụ quản lý một chức năng riêng biệt  
+Luồng tương tác:  
+● Từ API Gateway: thực hiện điều hướng yêu cầu từ khách hàng đến đúng dịch vụ 
+đích (như tra cứu sách, xem giỏ hàng, thanh toán...).  
+● Sự phối hợp giữa các dịch vụ (Inter-service communication):  
+● Comment-service → Book-service: Khi người dùng xem bình luận, hệ thống có thể 
+cần truy vấn thông tin sách tương ứng.  
+● Order-service là trung tâm: Nó kết nối với Cart-service (để lấy món hàng), Book-
+service (để kiểm tra kho), và Shipment-service (để bắt đầu quy trình giao hàng sau 
+khi đặt hàng thành công).  
+● Customer-service → Cart-service: Để xác định giỏ hàng thuộc về khách hàng nào
+
+2.2 Sơ đồ kiến trúc các service
+Tarsenvice
+‘CarkControlier
+[>getsycustomer
+
+|-adater)
+[+removerters)
+|-updateltemy)
+[rclearcarto
+
+1a
+
+[jstomer id Sting
+Leteated at: imestamp
+id: Steing
+
+Cartitem
+
+[art id string
+book id tring
+
+L quantity: int
+Lereated at : timestamp
+Lupdated_at: timestamp
+Lid: string
+
+CustomerSerice
+
+[CustomerControlier
+fegeteyta0)
+
+fegettis)
+
+frereated)
+
+|rupdaten
+|+doLoging)
+
+‘Customer
+(name: string
+
+|emal: string
+[password : String
+|created_at : timestamp
+Lia: string
+
+Payment Serve
+
+Payment Controller
+
+[FaetPaymentMethodL et)
+|-getDetaiPayment)
+
+1 Payment
+
+[ordre string
+{payment method a: Sting
+[eae Sbing
+
+Lean tet: string
+
+| ceatedwsetmestamp
+Lamune: nose
+
+PaymentMethod
+
+[code : String
+[name string
+
+| description: String
+[is actve : boolean
+
+| display order int
+|created_ at timestamp
+Lia: string
+‘OrderService
+
+[VoucherContraler
+
+[-validateVoucher)
+|sappiyvoucher)
+
+[—Voucherusage —]
+
+Vouchersence
+
+‘Grderitem
+[order id: sting ‘order
+[nook id: String [siomer i Sting
+[nook tle: Sting [pay.method: string
+|nook price : oat [ship-method: sting
+[quantity int }—<>}shipping address: string
+| subtotal: float | status: sting
+[<reated.at:timestamp| [payment status String
+|i: string [shipping sts: string
+
+| created at: timestamp
+KN |i: string
+‘GrderContoller ‘
+Freneckoury '
+jgetorderusty |.------- <ause>>
+[-setorderDetaity
+
+[voucher. id: string
+[customer id :String
+
+| siscaunt_ amount: float
+
+|order.id string
+[used at date
+
+Voucher
+code Siring
+| name: string
+
+| description: String
+|tiscount. ype : string
+
+| siscount value Sting
+
+| min_purchase_amount : float
+| max discount amount: flat
+[usage_timit: int
+
+[usage count: int
+
+[star date : date
+
+lend date :date
+
+| status string
+|created by staff. id: String
+|created_at : date
+
+[updated at: date
+
+3. Tài liệu API  
+  
+Dịch vụ  
+Port  
+Endpoint  
+Phương thức  
+Mô tả / Chức năng 
+chính  
+Customer  8001  
+/api/customers/  
+GET, POST  
+Quản lý danh sách 
+khách hàng  
+  
+  
+/api/customers/{id}/  
+GET,  
+PUT,  
+DELETE  
+Chi tiết/Cập nhật/Xóa 
+khách hàng  
+  
+  
+/api/login/  
+POST  
+Đăng nhập hệ thống  
+Book  
+8003  
+/api/books/  
+GET  
+Lấy danh sách sách
+Shipments
+
+‘ShipmentContralier
+[=getSh iementMethodis)
+|+createShipment()
+|-getDetaishipment()
+
+Gateway Service
+Book Senice
+BoakContralier aan aL
+[rgetBookList() tte
+os [+book list)
+Y |+book detaik)
+Book [rad to cart
+[ile string |+remove_from_car()
+| author: String |-add_ review)
+| price : float |+delete review)
+| description: String fscheckouto
+| stock: int Jrorder 1st)
+|created_at : timestamp fsorder_detai
+Lia: string [register
+Comment Senice
+DookReviewContralier
+[rcreataReview)
+sy __,
+jookReview
+[customer id :Sting
+| book id String
+[eating :int
+
+| comment: String
+|created_at timestamp
+lia: string
+
+‘Shipment
+
+[arden string
+| shipment method id: String
+method: String
+
+address: String
+
+status Sting
+
+[racking code : String
+Lereated at: timestamp
+
+id: String
+
+‘Shipment Method
+[code String
+
+[name string
+
+| description: String
+
+| estimated days: int
+[is active : boolean
+|sisplay order: int
+|created_at timestamp
+Lia: string
+
+/api/books/{id}/  
+GET  
+Xem chi tiết sách  
+Cart  
+8002  
+/api/carts/  
+GET, POST  
+Quản lý giỏ hàng  
+  
+  
+/api/carts/{id}/  
+GET,  
+PUT,  
+PATCH, DELETE  
+Thao tác trên giỏ hàng 
+cụ thể  
+  
+  
+/api/carts/customer/{cu 
+stomer_id}/  
+GET  
+Lấy giỏ hàng theo 
+khách hàng  
+  
+  
+/api/carts/{id}/add-item 
+/  
+POST  
+Thêm sản phẩm vào  
+giỏ  
+  
+  
+/api/carts/{id}/remove-i 
+tem/{item_id}/  
+DELETE  
+Xóa sản phẩm khỏi  
+giỏ  
+Order  
+8007  
+/api/orders/checkout/  
+POST  
+Đặt hàng (Checkout)  
+  
+  
+/api/orders/customer/{c 
+ustomer_id}/  
+GET  
+Lịch sử đơn hàng của 
+khách  
+  
+  
+/api/orders/{order_id}/  
+GET  
+Chi tiết đơn hàng  
+Payment  
+8009  
+/api/payments/create/  
+POST  
+Tạo thanh toán mới  
+  
+  
+/api/payments/order/{or 
+der_id}/  
+GET  
+Kiểm tra thanh toán 
+theo đơn hàng  
+  
+  
+/api/payment-methods/  
+GET  
+Lấy các phương thức 
+thanh toán  
+Shipment  
+8008  
+/api/shipments/create/  
+POST  
+Tạo vận đơn  
+  
+  
+/api/shipments/order/{o 
+rder_id}/  
+GET  
+Theo dõi vận chuyển 
+theo đơn hàng  
+Review  
+8010  
+/api/reviews/  
+GET, POST  
+Quản lý đánh giá  
+  
+  
+/api/reviews/book/{boo 
+k_id}/  
+GET  
+Xem đánh giá theo  
+sách  
+  
+  
+/api/reviews/book/{boo 
+k_id}/avg/  
+GET  
+Điểm đánh giá trung 
+bình  
+Voucher  
+8012  
+/api/vouchers/  
+GET, POST  
+Quản lý mã giảm giá  
+  
+  
+/api/vouchers/apply/  
+POST  
+Áp dụng voucher vào 
+đơn hàng
+
+/api/vouchers/validate/  
+POST  
+Kiểm tra tính hợp lệ 
+của mã  
+  
+4. Docker compose  
+4.1 Cấu hình docker   
+● File Docker compose  
+  
+● Cấu hình các biến môi trường
+© docker-composeyml u X — & comment.log n+ DOCKER_COMMANDS.md U
+
+@ docker-composeyml
+
+1
+2
+3
+4
+5
+6
+7
+8
+9
+
+18
+1
+12
+13
+14
+15
+16
+17
+18
+19
+28
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+49
+41
+
+Pull mages | DCompose Up
+services:
+
+# API Gateway
+
+api-gateway:
+build:
+context: ./api-gateway
+dockerfile: Dockerfile
+ports:
+
+a00:8000"
+environment:
+
+- DEBUG=True
+
+- ALLOWED_HOSTS=*, localhost
+
+volumes:
+
+- ./api-gateway: /app
+
+- api_gateway_static:/app/static
+
+networks:
+
+- bookstore-network
+
+command: python manage.py runserver 8.6.0.0:8000
+
+# Customer Service
+customer-service:
+
+build:
+
+context: ./customer-service
+dockerfile: Dockerfile
+ports:
+
+| - "g901:8801"
+
+environment:
+
+- DEBUG=True
+
+- ALLOWED_HOSTS=*,1ocalhost
+volumes:
+
+- ./customer-service:/app
+
+- customer_static: /app/static
+networks:
+
+- bookstore-network
+
+command: python manage.py runserver 0.0.0.0:8001
+
+# Cart Service
+cart-service:
+
+build:
+
+context: ./cart-service
+dockerfile: Dockerfile
+
+ports:
+
+'& docker-compose.prod.yml u
+
+(CARR O~
+
+4.2 Sử dụng docker để chạy các service
+© docker-composeymlU |! .env X _# DOCKER_COMMANDS.md U —  docker-compose.prodyn
+
++H env
+Django Settin
+DEBUG=False
+
+[LLOWED_HOSTS=Localhost ,127.0.0.1
+
+a
+
+3
+
+4
+
+5  # Database
+
+6  DB_ENGINE=django.db.backends.postgresql
+7
+
+9
+
+8
+
+DB_NAME=bookstore_db
+DB_USER=bookstore_user
+DB_PASSWORD=bookstore_password
+DB_HOST=db
+
+DB_PORT=5432
+API_GATEWAY_URL=http:
+CUSTOMER_SERVICE_URI
+
+CART_SERVICE_URL=htt
+
+BOOK_SERVICE_URL=htty
+STAFF_SERVICE_URL=http: //staff-service:8004
+MANAGER_SERVICE_URL=http: //manager-service:8005
+
+RECOMMENDER_AI_SERVICE_URL=http: //recommender
+VOUCHER_SERVICE_URL=http: //voucher-service:8012
+© hiep@hiep:~/Documents/Ki-8/SA/assign-S/bookstore-service$ docker compose up -d 2>&1 | tail -15
+Container bookstore-service-voucher-service-1 Starting
+Container bookstore-service-api-gateway-1 Starting
+Container bookstore-service-pay-service-1 Starting
+Container bookstore-service-book-service-1 Starting
+Container bookstore-service-cart-service-1 Started
+Container bookstore-service-manager-service-1 Started
+Container bookstore-service-comment-rate-service-1 Started
+Container bookstore-service-voucher-service-1 Started
+Container bookstore-service-customer-service-1 Started
+Container bookstore-service-book-service-1 Started
+Container bookstore-service-pay-service-1 Started
+Container bookstore-service-api-gateway-1 Started
+Container bookstore-service-ship-service-1 Started
+Container bookstore-service-order-service-1 Started
+Container bookstore-service-chat-agent-service-1 Started
+
+5. Mô tả 1 số luồng chức năng  
+5.1 Khách hàng đăng ký tài khoản  
+  
+● Client gửi request đăng ký khách hàng.  
+● Hệ thống kiểm tra dữ liệu nhập vào (email, password, phone...).  
+● Nếu dữ liệu không hợp lệ → trả lỗi.  
+● Nếu hợp lệ → tạo khách hàng và lưu vào database.  
+● Sau đó gọi cart-service để tạo giỏ hàng cho khách hàng. ● Hệ thống trả kết quả đăng 
+ký thành công cho client.
+@ Bookstore Service
+
+® Trang cha (@P Dang nhap & Ding ky
+
+& Dang ky khdch hang
+
+Ho va tén*
+Nhép ho va tén
+Email *
+example@email.com
+Mat khau *
+
+Nhap mat khéu (tdi thiéu 6 ky ty)
+
+Da cé tai khoan?
+
+& Ding nhap ngay
+
+© 2026 Bookstore Service - Microservices Architecture
+
+5.2 Khách hàng  
+thêm sách, chỉnh sửa, xem sách trong giỏ hàng  
+  
+● Xem giỏ hàng: Client gửi request lấy giỏ hàng theo customer_id, hệ thống trả về 
+thông tin giỏ hàng và các sản phẩm trong giỏ.  
+● Thêm sản phẩm: Thêm sách vào giỏ hàng, nếu đã tồn tại thì tăng số lượng.  
+● Cập nhật sản phẩm: Thay đổi số lượng sản phẩm trong giỏ hàng.  
+● Xóa sản phẩm: Xóa một sản phẩm khỏi giỏ hàng.  
+● Xóa toàn bộ giỏ hàng: Xóa tất cả sản phẩm trong giỏ hàng.
+@ Bookstore Service
+
+®Trangchi SxXemsich =F Gidhang —- @ Bonhang
+
+xin chao, Nguyén Vin A (nguyenvana@gmail.com) [bing nude |
+
+Ba thém sch vao gid hang! x
+
+" Gid hang
+
+Khach hang: Nguyén Van A (nguyenvana@gmail.com)
+
+sch ‘Don gid sé lugng ‘Thanh tién Hanh déng
+
+The Lord of the Rings
+
+IRR. Tolkien 194 1 19d Ea
+‘Téng cong: 196
+
+© 2026 Bookstore Service - Microservices Architecture
+
+5.3 Khách hàng  
+đặt đơn gọi đến thanh toán, vận chuyển  
+  
+● Nhận yêu cầu checkout: Client gửi customer_id, phương thức thanh toán, phương 
+thức giao hàng và địa chỉ giao hàng.  
+● Lấy giỏ hàng: Order Service gọi cart-service để lấy danh sách sản phẩm trong giỏ 
+hàng của khách hàng.  
+● Lấy thông tin sách: Gọi book-service để lấy giá và thông tin sách, sau đó tính tổng 
+tiền đơn hàng.  
+● Áp dụng voucher (nếu có): Gọi voucher-service để kiểm tra mã giảm giá và tính số 
+tiền giảm.  
+● Tạo đơn hàng: Lưu thông tin đơn hàng và các order item vào database.  
+● Tạo thanh toán: Gọi pay-service để tạo giao dịch thanh toán cho đơn hàng.  
+● Tạo vận chuyển: Gọi ship-service để tạo thông tin giao hàng.  
+Xác nhận đơn hàng: Cập nhật trạng thái đơn hàng thành CONFIRMED nếu các bước 
+thành công.  
+● Cập nhật voucher: Gọi voucher-service để ghi nhận việc sử dụng voucher.
+‘= Thanh todn
+
+ja chi giao hang *
+
+Nhép dia chi day di.
+
+| Ma gidm gia (tay chon)
+
+Nhap ma gidm gid.
+
+Vi du: WELCOME 10, SUMMER20,
+
+Phuong thifc thanh toan
+
+Thé tin dung - Thanh toén bng thé tin dyng Visa, MasterC v
+
+Phung thifc van chuyén
+
+Giao hang tiéu chun (4 ngay) - Giao hang trong 3-5 nga
+
+Hay J Xacnhan dat hang
+
+5.4 Khách hàng  
+● Xóa giỏ hàng: Gọi cart-service để xóa toàn bộ sản phẩm trong giỏ sau khi đặt hàng 
+thành công.  
+đánh giá sách  
+  
+● Xem danh sách đánh giá: Trả về tất cả các đánh giá sách trong hệ thống.  
+● Thêm hoặc cập nhật đánh giá: Khách hàng gửi customer_id và book_id, nếu đã đánh 
+giá thì cập nhật, nếu chưa thì tạo đánh giá mới.
+Bookstore Service
+
+‘Trang chi Kem sch Gidhang Don hang
+
+LL Chi tiét sch
+
+The Lord of the Rings a
+Tac gid: J.RR. Tolkien sé luong:
+Gia: 194 1
+
+Banh (4.0/5.0-4 danh gid)
+
+Meta
+
+Chua cé mé td cho séch nay,
+
+© anh gid ciia khach hang
+
+‘\. Cép nhat danh gid cia ban
+
+S6 sa0:
+
+Nhan xét:
+
+Chia sé cam nhan cla ban vé c
+
+Tat cd danh gid (4)
+
+| Khach hang #1
+
+Khach hang #4
+
+Thé gidi Middle-earth duac xay dung hoan hdo dén ti
+
+9 chi tit
+
+5.5 Khách hàng  
+● Cập nhật đánh giá: Chỉnh sửa nội dung hoặc số sao của đánh giá.  
+● Xóa đánh giá: Xóa một đánh giá khỏi hệ thống.
+
+System-Architecture-Design / ass05 / (0)
+
+@ Tana-Tana feat: ass05
+
+iq
+3
+3
+
+api-gateway
+book-service
+cart-service
+catalog-service
+comment-rate-service
+customer-service
+manager-service
+
+order-service
+
+recommender-ai-service
+
+ship-service
+
+README.md
+
+GOoPTRrFRFRFRFRFBRFRFRFREFE
+
+docker-compose.yml
+
+Add file ~
+
+9b78e2-1 minute ago ©) History
+
+Last commit message Last commit date
+feat: ass05 1 minute ago
+feat: ass05 1 minute ago
+feat: ass05 1 minute ~oG
+feat: ass05 1 minute ago
+feat: ass05 1 minute ago
+feat: ass05 1 minute ago
+feat: ass05 1 minute ago
+feat: ass05 1 minute ago
+feat: ass05 1 minute ago
+feat: ass05 1 minute ago
+feat: ass05 1 minute ago
+feat: ass05 1 minute ago
+feat: ass05 1 minute ago
+feat: ass05 1 minute ago

@@ -1,0 +1,38 @@
+FROM python:3.11-slim
+
+# ── System dependencies ───────────────────────────────────────────────────────
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Tesseract OCR + language packs
+    tesseract-ocr \
+    tesseract-ocr-vie \
+    tesseract-ocr-eng \
+    # FFmpeg (faster-whisper audio decoding)
+    ffmpeg \
+    libsndfile1 \
+    # Java (Tika)
+    default-jre-headless \
+    # Build tools for native extensions
+    gcc \
+    g++ \
+    libffi-dev \
+    libssl-dev \
+    # Git (for PyGitHub / subprocess fallback)
+    git \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── Python dependencies ───────────────────────────────────────────────────────
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# ── Application code ──────────────────────────────────────────────────────────
+COPY . .
+RUN mkdir -p app/storage/uploads
+
+# ── Entrypoint ────────────────────────────────────────────────────────────────
+# Celery worker: 1 concurrent task (ML models are memory-intensive)
+CMD ["celery", "-A", "app.worker.celery_app", "worker", \
+     "--loglevel=info", \
+     "--concurrency=1", \
+     "--queues=document_jobs"]

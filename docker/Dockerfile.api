@@ -1,0 +1,34 @@
+FROM python:3.11-slim
+
+# ── System dependencies ───────────────────────────────────────────────────────
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Tesseract OCR + Vietnamese language pack
+    tesseract-ocr \
+    tesseract-ocr-vie \
+    tesseract-ocr-eng \
+    # FFmpeg for audio processing (faster-whisper)
+    ffmpeg \
+    # Java for Apache Tika client
+    default-jre-headless \
+    # Build tools
+    gcc \
+    g++ \
+    libffi-dev \
+    libssl-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── Python dependencies ───────────────────────────────────────────────────────
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# ── Application code ──────────────────────────────────────────────────────────
+COPY . .
+
+# Create upload storage directory
+RUN mkdir -p app/storage/uploads
+
+# ── Entrypoint ────────────────────────────────────────────────────────────────
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
