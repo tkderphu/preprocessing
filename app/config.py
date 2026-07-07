@@ -37,11 +37,8 @@ class Settings(BaseSettings):
     whisper_compute_type: str = "int8"        # int8 | float16 | float32
     huggingface_token: str = Field(default="", alias="HF_TOKEN")
 
-    # ── Tika ──────────────────────────────────────────────────────────────────
-    tika_server_url: str = "http://tika:9998"
-
-    # ── Tesseract ─────────────────────────────────────────────────────────────
-    tesseract_lang: str = "eng+vie"
+    # ── Unstructured API ──────────────────────────────────────────────────────
+    unstructured_url: str = "http://unstructured:8000"
 
     # ── Groq ──────────────────────────────────────────────────────────────────
     groq_api_key: str = ""
