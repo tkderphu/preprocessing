@@ -12,7 +12,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 
 from app.config import get_settings
 from app.models.schemas import FileType, JobMessage, UploadResponse
-from app.services.queue import publish_job
+from app.worker.celery_app import celery_app
 
 logger    = logging.getLogger(__name__)
 settings  = get_settings()
@@ -97,11 +97,16 @@ async def upload_file(
         file.filename, file_size_mb, job.job_id,
     )
 
-    # Publish to RabbitMQ
+    # Dispatch to Celery worker via RabbitMQ (proper Celery message format)
     try:
-        await publish_job(job)
+        celery_app.send_task(
+            "app.worker.tasks.process_document_job",
+            args=[job.model_dump_json()],
+            task_id=job.job_id,
+            queue=settings.celery_queue_name,
+        )
     except Exception as exc:
-        logger.error("Failed to publish job to RabbitMQ: %s", exc)
+        logger.error("Failed to dispatch Celery task: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Failed to enqueue job. Please try again later.",

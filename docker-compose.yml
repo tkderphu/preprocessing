@@ -70,10 +70,6 @@ services:
         condition: service_started
     restart: unless-stopped
     # Scale workers with: docker compose up --scale worker=3
-    deploy:
-      resources:
-        limits:
-          memory: 8G    # Whisper + GLiNER models need RAM
 
   # ── RabbitMQ ─────────────────────────────────────────────────────────────────
   rabbitmq:
