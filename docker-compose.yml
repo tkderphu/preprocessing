@@ -65,7 +65,7 @@ services:
       redis:
         condition: service_healthy
       tika:
-        condition: service_healthy
+        condition: service_started
       ollama:
         condition: service_started
     restart: unless-stopped
@@ -117,10 +117,11 @@ services:
       - "9998:9998"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9998/tika"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9998/tika"]
       interval: 20s
-      timeout: 10s
-      retries: 5
+      timeout: 15s
+      retries: 10
+      start_period: 90s
 
   # ── Ollama (Qwen2.5 LLM) ─────────────────────────────────────────────────────
   ollama:
