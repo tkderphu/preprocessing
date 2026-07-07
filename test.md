@@ -2,7 +2,7 @@
 
 ## Source
 - **File type**: document
-- **Processed at**: 2026-07-07 06:23 UTC
+- **Processed at**: 2026-07-07 07:19 UTC
 
 ## Meeting Date
 Unknown
@@ -16,332 +16,102 @@ Unknown
 ## Raw Content
 
 ```
-HỌC
+Assignment 03: BOOKSTORE
+MANAGEMENT SYSTEM
+Ngày 27 tháng 1 năm 2026
+[PERSON_REDACTED] tiến hành thực hiện tại nhà và tiếp tục hoàn thiện nộp tại lớp vào buổi học
+tuần sau
+Chương 1: Xác định và phân tích yêu cầu (không đầy đủ)
+ Lập Bảng Các actor và các chức năng tương ứng
+ Lập Bảng các lớp, các thuộc tính và các chức năng trong lớp đó
+ Biểu đồlớp Phân tích > 50 lớp (chỉcó lớp, thuộc tính, quan hệ). Biểu đồnày được
+copy vào trong 3 folder: ANALYSIS, DATAMODEL, DESIGN
+ Vẽ1 biểu đồhoạt động và 1 biểu đồtuần tự. Trình bày ý nghĩa các biểu đồnày
+ [PERSON_REDACTED] nộp: 2 Bảng + 3 Biểu đồ(BĐ lớp phân tích + 1 Biểu đồHoạt động + 1
+Biểu đồtuần tự) và các giải thích
+Chương 2: Data model và Data base
+ Mởfile datamodel, Xác định lại quan hệnhiều nhiều, một nhiều....Thêm ORM để
+sinh ra data model
+ Sinh ra database mySQL hay PostgreSQL
+ [PERSON_REDACTED] nộp 3 copy màn hình: 1. Biểu đồlớp + ORM 2. data model 3. database
+Chương 3: Thiết kế
+ Trình bày hiểu biets về: DAO, MVC và monolithic mô hình
+ Mởfile design Biểu đồlớp trong folder DESIGN và bổsung các phương thức
+ Tiến hành Thiết kếcác layer
+ Sinh code Django
+Chương 4: Cài đặt và triển khai
+ Chỉra sựtương ứng code và thiết kế
+ Copy 6 ảnh màn hình Giao diện:
+1
 
-VIỆN
+– [PERSON_REDACTED] nhập sách
+– [PERSON_REDACTED] tìm sách, gợi ý sách, tạo giỏhàng, thanh toán, shipping
+Bảng 1: Bảng Actor và Chức năng tương ứng ([PERSON_REDACTED] PHẢI CẬP NHẬT)
+Actor
+Chức năng
+[PERSON_REDACTED]
+- Đăng ký / đăng nhập hệthống
+- Tìm kiếm sách
+- Xem chi tiết sách
+- Thêm sách vào giỏhàng
+- Đặt hàng và thanh toán
+- Theo dõi trạng thái giao hàng
+- Nhận gợi ý sách từhệthống tư vấn
+Quản trịviên
+- Quản lý danh mục sách
+- Quản lý người dùng
+- Quản lý đơn hàng
+- Cập nhật trạng thái thanh toán
+- Quản lý vận chuyển
+Hệthống thanh
+toán
+- Xửlý giao dịch thanh toán
+- Xác nhận kết quảthanh toán
+- Gửi thông báo vềhệthống
+Hệ thống vận chuyển
+- Nhận yêu cầu giao hàng
+- Cập nhật trạng thái vận chuyển
+- Xác nhận giao hàng thành công
+Module tư vấn
+gợi ý
+- Phân tích lịch sửmua hàng
+- Phân tích hành vi người dùng
+- Sinh danh sách sách gợi ý
+Nhân viên nhập
+sách
+- Nhập sách mới vào hệthống
+- Cập nhật thông tin sách
+- Kiểm tra tồn kho
+- Xóa sách lỗi hoặc ngừng kinh doanh
+Hệthống thanh
+toán 2
 
-CÔNG
-
-NGHỆ
-
-BƯU
-
-CHÍNH
-
-VIỄN
-
-THÔNG
-
-KHOA
-CÔNG
-NGHỆ
-THÔNG
-TIN
-
-
-
-
-
-
-Kiến
-
-trúc
-
-và
-
-phát
-
-triển
-
-phần
-
-mềm
-
-Assign
-  5
-
+Bảng 2: Bảng các lớp trong hệthống (SINH VIÊN PHẢI CẬP NHẬT)
 Lớp
-
-chuyên
-ngành
-:
-CNPM05
-
-Họ
-và
-tên
-:
-Phan Thanh Tân
-
-
-
-
-
-Mã
-sinh
-viên
-
-:
-B22DCCN718
-
-
-
-
-
-Hà
-
-Nội
-
-–
-
-2026
-
-ASSIGNMENT 5
-1. Đề bài
-Mục tiêu
-● Chuyển đổi hệ thống BookStore dạng monolithic thành kiến trúc microservices.
-● Sử dụng Django REST Framework để triển khai các service.
-Yêu cầu chức năng chính
-● Đăng ký khách hàng tự động tạo giỏ hàng.
-● Staff quản lý sách (thêm, sửa, xóa, cập nhật).
-● Khách hàng quản lý giỏ hàng (thêm sách, xem giỏ, cập nhật).
-● Khi đặt hàng, hệ thống kích hoạt thanh toán và giao hàng, khách hàng chọn phương
-thức thanh toán và vận chuyển.
-Yêu cầu kỹ thuật
-● Sử dụng Django REST Framework.
-● Các service giao tiếp với nhau qua REST API.
-● Sử dụng Docker Compose để triển khai.
-● Mỗi service có database riêng (independent databases).
-
-
-2. Kiến trúc
-2.1 Sơ đồ kiến trúc chung
-
-Các thành phần:
-
-● Client: Đại diện cho phía người dùng (có thể là ứng dụng di động hoặc trình duyệt
-web), nơi gửi yêu cầu ban đầu.
-● API Gateway: Đóng vai trò là "cổng ra vào" duy nhất. Thay vì Client gọi trực tiếp
-từng dịch vụ nhỏ, nó sẽ gửi mọi yêu cầu qua đây. API Gateway sẽ chịu trách nhiệm
-điều hướng (routing), bảo mật và quản lý tải.
-● Các Dịch vụ nghiệp vụ (Microservices): Hệ thống được chia nhỏ thành nhiều dịch
-vụ độc lập, mỗi dịch vụ quản lý một chức năng riêng biệt
-Luồng tương tác:
-● Từ API Gateway: thực hiện điều hướng yêu cầu từ khách hàng đến đúng dịch vụ
-đích (như tra cứu sách, xem giỏ hàng, thanh toán...).
-● Sự phối hợp giữa các dịch vụ (Inter-service communication):
-● Comment-service → Book-service: Khi người dùng xem bình luận, hệ thống có thể
-cần truy vấn thông tin sách tương ứng.
-● Order-service là trung tâm: Nó kết nối với Cart-service (để lấy món hàng), Book-
-service (để kiểm tra kho), và Shipment-service (để bắt đầu quy trình giao hàng sau
-khi đặt hàng thành công).
-● Customer-service → Cart-service: Để xác định giỏ hàng thuộc về khách hàng nào
-
-2.2 Sơ đồ kiến trúc các service
-£arSeice
-'€artcontroller
-[ÈgetBycustomer)
-|-adatem0,
-[+removerteri)
-|-updatettem)
-[rclearcarto
-
-1 at
-
-|susemar id Sting
-Lefeated at: imestamp
-id: Sưing
-
-Cartitem
-
-[arid :string
-book id tring
-[auantty: int
-Lereated at : timestamp
-updated_at: timestamp
-Lia: sưng
-
-'EuslomerServie.
-
-leustomercontrolier
-|Ègaaudo,
-
-|egetlag
-
-[screated)
-
-|rupdaten
-|-deLegino.
-
-‘Customer
-[name : string
-
-|emal: sưng
-
-| password : String
-|created_at : timestamp
-Lia: string
-
-Payment Serve
-
-Payment Controller
-
-ÌÈgetpaymentMethodLet0,
-|-getoetaiPayment.
-
-T Payment
-
-[ord «tring
-[payment method a: Sting
-line
-
-[an ter:srng
-|«e4etweetmesamp
-[amamt: Rost
-
-PaymentMethod
-
-[code : String
-[name : string
-
-| description: String
-[is actve : boolean
-
-| display order int
-|created_ at timestamp
-Lia: string
-‘Crderservice
-
-[VoucherContraler
-
-[-vaidateVoucher)
-|-applyeucherg.
-
-[ Wawerusage |
-
-VaucherServee,
-
-‘Orderitem
-[order id sting ‘order
-[book 14: String [eusiomer i sting
-[nook tle: Sting [say menee: string
-[book price : oat [ship-method: sưng
-[quantity int [CC -hppng address: string
-| subtotal: float [ status: sting
-[created at:timestamp| [payment status String
-la: string [shipping saus: string
-[rested at: timestamp
-„ la: string
-‘GrderContoller ‘
-|<heaouo h
-jgeorderustg |__..___ <ause>>
-[saetorder Detail)
-
-[voucher id: string
-[customer id :String
-
-|aiseeunt amount: float
-
-[order id string
-{used at date
-
-Voucher
-†code:Sưing
-name  srng
-
-| description: String
-[discount ype : string
-
-| siscount value Sting
-
-| min_purchase amount : float
-| max discount amount: float
-[usage_timit:int
-
-[usage count: int
-
-[tan date : date
-
-[end date :date
-
-| status: String
-|created by staff.id: String
-|created_at : date
-
-[updated at: date
-
-3. Tài liệu API
-
-Dịch vụ
-Port
-Endpoint
-Phương thức
-Mô tả / Chức năng
-chính
-Customer  8001
-/api/customers/
-GET, POST
-Quản lý danh sách
-khách hàng
-
-
-/api/customers/{id}/
-GET,
-PUT,
-DELETE
-Chi tiết/Cập nhật/Xóa
-khách hàng
-
-
-/api/login/
-POST
-Đăng nhập hệ thống
-Book
-8003
-/api/books/
-GET
-Lấy danh sách sách
-SNpmen:Seyyiœ>
-
-Shipmentcontraller
-ÌÈgetshipmentMethodLiat)
-|screateShipment()
-|-aetoetaishipment0.
-
-Gateway Service
-Book Senice
-BoakContralier = aS
-[rgetBooktist() ite
-ae |+book list
-Ũ [+book detaik)
-Book |-add to cang
-[tile string |+remove_from_cart)
-| author: String [sad review)
-| price : float |+delete review)
-| description: String |echeckout
-| stock: int [order Ist)
-|created_at : timestamp fsorder_detai
-Lia: string [register
-Comment Senice
-DookRaviewContralier
-[rcreataReview)
-BM——
-jookReview
-[customer id: Sting
-[book id String
-[rating : int
-
-| comment: sưng
-|created_at timestamp
-la: string
-
-‘Shipment
-
-[order id: String
-| shipment. method id: String
-method: String
-
-Laddress: st
+Thuộc tính
+Methods [PERSON_REDACTED] [PERSON_REDACTED], username, password,
+email, role
+register(), login(), updatePro- file() Book bookID, title, author, price,
+stock, category
+getDetail(), updateStock()
+Cart
+cartID, [PERSON_REDACTED], listBook, total-
+Price
+addBook(), removeBook(), com-
+puteTotal() Order
+orderID, [PERSON_REDACTED], orderDate, sta-
+tus, totalAmount
+createOrder(), updateStatus(), cancelOrder() Payment paymentID, orderID, method,
+amount, status
+processPayment(), confirmPay- ment() Shipment shipmentID, orderID, [ADDRESS_REDACTED], status createShipment(), updateShip- mentStatus() RecommendationEngine modelID, userHistory, recom- mendedList
+analyzeBehavior(), generateRec-
+ommendation() InventoryStaff
+[PERSON_REDACTED], name, email
+addBook(), updateBook(), check-
+Stock(), removeBook()
+[PERSON_REDACTED]
+[PERSON_REDACTED], username, password
+manageUser(), manageBook(), manageOrder() 3
 ```
 
 ---

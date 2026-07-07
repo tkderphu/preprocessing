@@ -1,17 +1,14 @@
 """
 formatter.py
 ------------
-Format extracted (and redacted) text into a structured Markdown document
-using the Qwen2.5 model via Ollama (local) or an OpenAI-compatible API.
+Two-stage document formatting:
 
-Output template:
-  # [Document Title]
-  ## Source
-  ## Meeting Date
-  ## Participants
-  ## Summary
-  ## Key Points
-  ## Action Items
+  Stage 1 (rule-based): text_preprocessor.text_to_markdown()
+      - Normalize → Merge broken lines → Detect headings/lists/tables → Markdown
+
+  Stage 2 (LLM):        Qwen2.5 via Ollama or OpenAI-compatible API
+      - Receives already-structured Markdown, polishes grammar/spacing/consistency
+      - If LLM is unavailable, Stage 1 output is returned as-is (still useful)
 """
 
 import logging
@@ -20,106 +17,43 @@ from datetime import datetime
 import httpx
 
 from app.config import get_settings
+from app.services.text_preprocessor import text_to_markdown
 
 logger   = logging.getLogger(__name__)
 settings = get_settings()
 
-# ── Text pre-processor ────────────────────────────────────────────────────────
+# ── LLM system prompt (polish only — structure already done) ──────────────────
 
-def clean_text(text: str) -> str:
-    """
-    Clean fragmented OCR output before sending to the LLM.
+SYSTEM_PROMPT = """You are a Markdown editor. You receive a document that has already been \
+converted to Markdown using automatic rules. Your job is to lightly polish it:
 
-    Problems fixed:
-    1. Single-word lines (scanned columns split every word onto its own line)
-       → joined back into flowing paragraphs.
-    2. Diagram/table OCR garbage (lines with >60% non-alphabetic chars)
-       → removed so they don't confuse the LLM.
-    3. Excessive blank lines → collapsed to max 2.
-    """
-    lines = text.splitlines()
-    cleaned: list[str] = []
-    paragraph_buffer: list[str] = []
+- Fix any remaining spacing issues or broken words (e.g. "đồlớp" → "đồ lớp")
+- Ensure heading levels are consistent and logical
+- Ensure tables are well-formed
+- Fix obviously broken list items
+- Do NOT summarize, omit content, or add sections that don't exist in the input
+- Do NOT change the meaning of any text
+- Output ONLY the polished Markdown, nothing else
+- Keep all redaction tags like [PERSON_REDACTED] exactly as-is
 
-    def _is_garbage(line: str) -> bool:
-        stripped = line.strip()
-        if len(stripped) < 3:
-            return False
-        alpha = sum(1 for c in stripped if c.isalpha())
-        ratio = alpha / len(stripped)
-        # Lines with <40% alphabetic chars = likely diagram/table OCR garbage
-        return ratio < 0.40
-
-    def _flush_buffer() -> None:
-        if paragraph_buffer:
-            cleaned.append(" ".join(paragraph_buffer))
-            paragraph_buffer.clear()
-
-    for line in lines:
-        stripped = line.strip()
-
-        if not stripped:
-            _flush_buffer()
-            cleaned.append("")
-            continue
-
-        if _is_garbage(stripped):
-            continue
-
-        words = stripped.split()
-
-        if len(words) == 1:
-            # Single-word line — likely a column-layout fragment; buffer it
-            paragraph_buffer.append(stripped)
-        else:
-            _flush_buffer()
-            cleaned.append(stripped)
-
-    _flush_buffer()
-
-    # Collapse runs of >2 blank lines
-    result_lines: list[str] = []
-    blank_count = 0
-    for ln in cleaned:
-        if ln == "":
-            blank_count += 1
-            if blank_count <= 2:
-                result_lines.append(ln)
-        else:
-            blank_count = 0
-            result_lines.append(ln)
-
-    return "\n".join(result_lines).strip()
-
-
-# ── Prompt ────────────────────────────────────────────────────────────────────
-
-SYSTEM_PROMPT = """You are a document formatter. Your ONLY job is to clean up and reformat raw text extracted from a PDF or DOCX file into clean, readable Markdown.
-
-RULES:
-- PRESERVE all original content. Do NOT summarize, omit, or paraphrase anything.
-- Fix broken formatting: join words that were split across lines, fix spacing, fix capitalization where obvious.
-- Detect and apply proper Markdown structure: headings (#, ##, ###), bullet lists, numbered lists, tables (if present), bold/italic where appropriate.
-- Remove clearly garbage characters from OCR (random symbols, broken Unicode, garbled diagram text).
-- Keep all names, numbers, dates, technical terms, and code exactly as they appear.
-- Do NOT add any commentary, summary sections, or metadata that was not in the original.
-- Output ONLY the cleaned Markdown content. No preamble, no explanation.
-- Add a single line at the very end: `---\\n*Processed at: {processed_at}*`
+Add this footer at the very end:
+---
+*Processed at: {processed_at}*
 """
 
 
-def _build_user_message(raw_text: str, content_type: str) -> str:
+def _build_user_message(pre_formatted: str) -> str:
     return (
-        f"Content type: {content_type}\n\n"
-        f"--- BEGIN RAW TEXT ---\n{raw_text[:12000]}\n--- END RAW TEXT ---\n\n"
-        "Clean up and reformat the above text into proper Markdown. "
-        "Preserve ALL content. Do not summarize."
+        f"--- BEGIN PRE-FORMATTED MARKDOWN ---\n"
+        f"{pre_formatted[:12000]}\n"
+        f"--- END PRE-FORMATTED MARKDOWN ---\n\n"
+        "Please lightly polish the Markdown above. Preserve all content."
     )
 
 
 # ── Ollama client ─────────────────────────────────────────────────────────────
 
-def _call_ollama(raw_text: str, content_type: str) -> str:
+def _call_ollama(pre_formatted: str) -> str:
     url     = f"{settings.ollama_base_url}/api/chat"
     payload = {
         "model": settings.qwen_model,
@@ -131,16 +65,9 @@ def _call_ollama(raw_text: str, content_type: str) -> str:
                     processed_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
                 ),
             },
-            {
-                "role": "user",
-                "content": _build_user_message(raw_text, content_type),
-            },
+            {"role": "user", "content": _build_user_message(pre_formatted)},
         ],
-        "options": {
-            "temperature": 0.3,
-            "top_p": 0.9,
-            "num_ctx": 16384,
-        },
+        "options": {"temperature": 0.2, "top_p": 0.9, "num_ctx": 16384},
     }
     with httpx.Client(timeout=300) as client:
         resp = client.post(url, json=payload)
@@ -150,7 +77,7 @@ def _call_ollama(raw_text: str, content_type: str) -> str:
 
 # ── OpenAI-compatible API client ──────────────────────────────────────────────
 
-def _call_openai_compatible(raw_text: str, content_type: str) -> str:
+def _call_openai_compatible(pre_formatted: str) -> str:
     url     = f"{settings.qwen_api_url}/chat/completions"
     headers = {"Authorization": f"Bearer {settings.qwen_api_key}"}
     payload = {
@@ -162,12 +89,9 @@ def _call_openai_compatible(raw_text: str, content_type: str) -> str:
                     processed_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
                 ),
             },
-            {
-                "role": "user",
-                "content": _build_user_message(raw_text, content_type),
-            },
+            {"role": "user", "content": _build_user_message(pre_formatted)},
         ],
-        "temperature": 0.3,
+        "temperature": 0.2,
         "top_p": 0.9,
         "max_tokens": 4096,
     }
@@ -181,40 +105,32 @@ def _call_openai_compatible(raw_text: str, content_type: str) -> str:
 
 class MarkdownFormatter:
     """
-    Format raw extracted text into structured Markdown using Qwen2.5.
-    Cleans fragmented OCR text before sending to the LLM.
-    Falls back to a minimal template if the LLM is unavailable.
+    Two-stage formatter:
+      1. Rule-based text_to_markdown() — always runs, produces usable output
+      2. LLM polish (Qwen) — runs if available, improves quality further
     """
 
     def format(self, raw_text: str, content_type: str = "document") -> str:
-        # Pre-process: fix word-per-line fragmentation and remove OCR garbage
-        cleaned = clean_text(raw_text)
+        # ── Stage 1: Rule-based pre-formatting (always runs) ──────────────────
+        pre_formatted = text_to_markdown(raw_text)
         logger.info(
-            "Text cleaned: %d → %d chars. Formatting with Qwen (%s)...",
-            len(raw_text), len(cleaned), settings.qwen_model,
+            "Stage 1 complete: %d → %d chars (rule-based Markdown)",
+            len(raw_text), len(pre_formatted),
         )
+
+        # ── Stage 2: LLM polish (optional) ───────────────────────────────────
         try:
             if settings.qwen_api_url:
-                markdown = _call_openai_compatible(cleaned, content_type)
+                result = _call_openai_compatible(pre_formatted)
             else:
-                markdown = _call_ollama(cleaned, content_type)
-
-            logger.info("LLM formatting complete (%d chars output).", len(markdown))
-            return markdown
+                result = _call_ollama(pre_formatted)
+            logger.info("Stage 2 complete: LLM polished output (%d chars)", len(result))
+            return result
 
         except Exception as exc:
-            logger.warning("LLM formatting failed (%s). Using fallback template.", exc)
-            return self._fallback_template(cleaned, content_type)
-
-    @staticmethod
-    def _fallback_template(raw_text: str, content_type: str) -> str:
-        now = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
-        return (
-            f"# Document\n\n"
-            f"## Source\n- **File type**: {content_type}\n- **Processed at**: {now}\n\n"
-            f"## Meeting Date\nUnknown\n\n"
-            f"## Participants\nUnknown\n\n"
-            f"## Summary\n*(LLM formatting unavailable — raw text below)*\n\n"
-            f"## Raw Content\n\n```\n{raw_text[:5000]}\n```\n\n"
-            f"---\n*Auto-generated by Document Intelligence Pipeline*\n"
-        )
+            logger.warning(
+                "Stage 2 (LLM) unavailable (%s). Returning Stage 1 output.", exc
+            )
+            # Stage 1 output is already useful — just add the footer
+            now = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+            return pre_formatted + f"\n\n---\n*Processed at: {now}*"
