@@ -31,8 +31,9 @@ faster-whisper==1.0.3           # CTranslate2-based Whisper (faster + lighter)
 # pyannote.audio==3.3.1         # Speaker diarization (uncomment + set HF_TOKEN)
 
 # ── PII Redaction ─────────────────────────────────────────────────────────────
-gliner==0.2.13                  # Multilingual NER for PII detection
-torch==2.3.1                    # Required by GLiNER
+gliner==0.2.7                   # Multilingual NER for PII detection (stable API)
+transformers==4.40.2            # Compatible with gliner 0.2.7
+torch==2.4.1                    # Required by GLiNER (>=2.4)
 
 # ── Email ─────────────────────────────────────────────────────────────────────
 aiosmtplib==3.0.1               # Async SMTP client

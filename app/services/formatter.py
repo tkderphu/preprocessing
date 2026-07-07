@@ -24,6 +24,74 @@ from app.config import get_settings
 logger   = logging.getLogger(__name__)
 settings = get_settings()
 
+# ── Text pre-processor ────────────────────────────────────────────────────────
+
+def clean_text(text: str) -> str:
+    """
+    Clean fragmented OCR output before sending to the LLM.
+
+    Problems fixed:
+    1. Single-word lines (scanned columns split every word onto its own line)
+       → joined back into flowing paragraphs.
+    2. Diagram/table OCR garbage (lines with >60% non-alphabetic chars)
+       → removed so they don't confuse the LLM.
+    3. Excessive blank lines → collapsed to max 2.
+    """
+    lines = text.splitlines()
+    cleaned: list[str] = []
+    paragraph_buffer: list[str] = []
+
+    def _is_garbage(line: str) -> bool:
+        stripped = line.strip()
+        if len(stripped) < 3:
+            return False
+        alpha = sum(1 for c in stripped if c.isalpha())
+        ratio = alpha / len(stripped)
+        # Lines with <40% alphabetic chars = likely diagram/table OCR garbage
+        return ratio < 0.40
+
+    def _flush_buffer() -> None:
+        if paragraph_buffer:
+            cleaned.append(" ".join(paragraph_buffer))
+            paragraph_buffer.clear()
+
+    for line in lines:
+        stripped = line.strip()
+
+        if not stripped:
+            _flush_buffer()
+            cleaned.append("")
+            continue
+
+        if _is_garbage(stripped):
+            continue
+
+        words = stripped.split()
+
+        if len(words) == 1:
+            # Single-word line — likely a column-layout fragment; buffer it
+            paragraph_buffer.append(stripped)
+        else:
+            _flush_buffer()
+            cleaned.append(stripped)
+
+    _flush_buffer()
+
+    # Collapse runs of >2 blank lines
+    result_lines: list[str] = []
+    blank_count = 0
+    for ln in cleaned:
+        if ln == "":
+            blank_count += 1
+            if blank_count <= 2:
+                result_lines.append(ln)
+        else:
+            blank_count = 0
+            result_lines.append(ln)
+
+    return "\n".join(result_lines).strip()
+
+
 # ── Prompt ────────────────────────────────────────────────────────────────────
 
 SYSTEM_PROMPT = """You are a professional document analyst. Your job is to read raw extracted text
@@ -134,26 +202,29 @@ def _call_openai_compatible(raw_text: str, content_type: str) -> str:
 class MarkdownFormatter:
     """
     Format raw extracted text into structured Markdown using Qwen2.5.
+    Cleans fragmented OCR text before sending to the LLM.
     Falls back to a minimal template if the LLM is unavailable.
     """
 
     def format(self, raw_text: str, content_type: str = "document") -> str:
+        # Pre-process: fix word-per-line fragmentation and remove OCR garbage
+        cleaned = clean_text(raw_text)
         logger.info(
-            "Formatting %d chars of '%s' with Qwen (%s)...",
-            len(raw_text), content_type, settings.qwen_model,
+            "Text cleaned: %d → %d chars. Formatting with Qwen (%s)...",
+            len(raw_text), len(cleaned), settings.qwen_model,
         )
         try:
             if settings.qwen_api_url:
-                markdown = _call_openai_compatible(raw_text, content_type)
+                markdown = _call_openai_compatible(cleaned, content_type)
             else:
-                markdown = _call_ollama(raw_text, content_type)
+                markdown = _call_ollama(cleaned, content_type)
 
             logger.info("LLM formatting complete (%d chars output).", len(markdown))
             return markdown
 
         except Exception as exc:
             logger.warning("LLM formatting failed (%s). Using fallback template.", exc)
-            return self._fallback_template(raw_text, content_type)
+            return self._fallback_template(cleaned, content_type)
 
     @staticmethod
     def _fallback_template(raw_text: str, content_type: str) -> str:
