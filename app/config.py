@@ -43,12 +43,9 @@ class Settings(BaseSettings):
     # ── Tesseract ─────────────────────────────────────────────────────────────
     tesseract_lang: str = "eng+vie"
 
-    # ── Qwen / Ollama ─────────────────────────────────────────────────────────
-    ollama_base_url: str = "http://ollama:11434"
-    qwen_model: str = "qwen2.5:7b"
-    # Set QWEN_API_URL + QWEN_API_KEY to use an external API instead of Ollama
-    qwen_api_url: str = ""
-    qwen_api_key: str = ""
+    # ── Groq ──────────────────────────────────────────────────────────────────
+    groq_api_key: str = ""
+    groq_model: str = "llama3-8b-8192" # default fast model on Groq
 
     # ── Email (SMTP) ──────────────────────────────────────────────────────────
     smtp_host: str = "smtp.gmail.com"

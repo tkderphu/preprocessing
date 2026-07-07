@@ -6,7 +6,7 @@ Two-stage document formatting:
   Stage 1 (rule-based): text_preprocessor.text_to_markdown()
       - Normalize → Merge broken lines → Detect headings/lists/tables → Markdown
 
-  Stage 2 (LLM):        Qwen2.5 via Ollama or OpenAI-compatible API
+  Stage 2 (LLM):        Groq Cloud API (Llama 3)
       - Receives already-structured Markdown, polishes grammar/spacing/consistency
       - If LLM is unavailable, Stage 1 output is returned as-is (still useful)
 """
@@ -66,37 +66,16 @@ def _build_user_message(pre_formatted: str) -> str:
     )
 
 
-# ── Ollama client ─────────────────────────────────────────────────────────────
+# ── Groq API client ─────────────────────────────────────────────────────────────
 
-def _call_ollama(pre_formatted: str) -> str:
-    url     = f"{settings.ollama_base_url}/api/chat"
+def _call_groq(pre_formatted: str) -> str:
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    if not settings.groq_api_key:
+        raise ValueError("GROQ_API_KEY is not set")
+        
+    headers = {"Authorization": f"Bearer {settings.groq_api_key}"}
     payload = {
-        "model": settings.qwen_model,
-        "stream": False,
-        "messages": [
-            {
-                "role": "system",
-                "content": SYSTEM_PROMPT.format(
-                    processed_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
-                ),
-            },
-            {"role": "user", "content": _build_user_message(pre_formatted)},
-        ],
-        "options": {"temperature": 0.2, "top_p": 0.9, "num_ctx": 16384},
-    }
-    with httpx.Client(timeout=300) as client:
-        resp = client.post(url, json=payload)
-        resp.raise_for_status()
-        return resp.json()["message"]["content"]
-
-
-# ── OpenAI-compatible API client ──────────────────────────────────────────────
-
-def _call_openai_compatible(pre_formatted: str) -> str:
-    url     = f"{settings.qwen_api_url}/chat/completions"
-    headers = {"Authorization": f"Bearer {settings.qwen_api_key}"}
-    payload = {
-        "model": settings.qwen_model,
+        "model": settings.groq_model,
         "messages": [
             {
                 "role": "system",
@@ -122,7 +101,7 @@ class MarkdownFormatter:
     """
     Two-stage formatter:
       1. Rule-based text_to_markdown() — always runs, produces usable output
-      2. LLM polish (Qwen) — runs if available, improves quality further
+      2. LLM polish (Groq) — runs if available, improves quality further
     """
 
     def format(self, raw_text: str, content_type: str = "document") -> str:
@@ -135,10 +114,7 @@ class MarkdownFormatter:
 
         # ── Stage 2: LLM polish (optional) ───────────────────────────────────
         try:
-            if settings.qwen_api_url:
-                result = _call_openai_compatible(pre_formatted)
-            else:
-                result = _call_ollama(pre_formatted)
+            result = _call_groq(pre_formatted)
             logger.info("Stage 2 complete: LLM polished output (%d chars)", len(result))
             return result
 

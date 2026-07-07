@@ -8,7 +8,6 @@
 #   rabbitmq  → Message broker (AMQP 5672, Management UI 15672)
 #   redis     → Celery result backend (port 6379)
 #   tika      → Apache Tika server (port 9998)
-#   ollama    → Qwen2.5 LLM server (port 11434)
 # ──────────────────────────────────────────────────────────────────────────────
 
 services:
@@ -28,7 +27,6 @@ services:
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672//
       - TIKA_SERVER_URL=http://tika:9998
-      - OLLAMA_BASE_URL=http://ollama:11434
     volumes:
       - uploads_data:/app/app/storage/uploads
     depends_on:
@@ -55,7 +53,6 @@ services:
       - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - TIKA_SERVER_URL=http://tika:9998
-      - OLLAMA_BASE_URL=http://ollama:11434
     volumes:
       - uploads_data:/app/app/storage/uploads
     depends_on:
@@ -64,8 +61,6 @@ services:
       redis:
         condition: service_healthy
       tika:
-        condition: service_started
-      ollama:
         condition: service_started
     restart: unless-stopped
     # Scale workers with: docker compose up --scale worker=3
@@ -118,27 +113,8 @@ services:
       retries: 10
       start_period: 90s
 
-  # ── Ollama (Qwen2.5 LLM) ─────────────────────────────────────────────────────
-  ollama:
-    image: ollama/ollama:latest
-    container_name: doc_intelligence_ollama
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_models:/root/.ollama
-    restart: unless-stopped
-    # Uncomment for GPU support (requires NVIDIA Container Toolkit):
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
-
 # ── Volumes ───────────────────────────────────────────────────────────────────
 volumes:
   uploads_data:
   rabbitmq_data:
   redis_data:
-  ollama_models:
