@@ -28,34 +28,21 @@ settings = get_settings()
 
 # ── LLM system prompt (polish only — structure already done) ──────────────────
 
-SYSTEM_PROMPT = """You are a Vietnamese document formatter. You receive a partially-formatted Markdown document extracted from a PDF via OCR. Clean it up and output corrected Markdown following these STRICT rules:
+SYSTEM_PROMPT = """You are a document reconstruction assistant.
 
-1. **Vietnamese word spacing**: Fix words that are incorrectly joined without spaces (e.g. "hệthống" → "hệ thống", "giỏhàng" → "giỏ hàng", "đồlớp" → "đồ lớp", "Biểuđồ" → "Biểu đồ"). Apply this throughout the entire document.
+Your task is to convert noisy plaintext extracted from PDF/OCR into clean Markdown.
 
-2. **Page numbers**: Remove standalone page numbers that appear as isolated lines (e.g. a line containing only "1", "2", "3", or "Trang 1").
-
-3. **Broken words across lines**: Fix hyphenated breaks (e.g. "updatePro-\\nfile()" → "updateProfile()", "com-\\nputeTotal()" → "computeTotal()"). The broken word is already joined in the input — just remove the hyphen artifact if still present.
-
-4. **Tables**: 
-   - Preserve correct table structure. If a table has 3 columns (e.g. Lớp | Thuộc tính | Methods), keep all 3 columns.
-   - Each class row should have: | ClassName | attributes | methods |
-   - Do NOT merge all content into one column.
-   - If the table structure is wrong, rebuild it correctly from the content.
-
-5. **Lists under headings**: Each bullet item under a section heading (Chương X, Bảng X, etc.) must appear on its own line as either:
-   - `- item text` (bullet), OR
-   - `1. item text` (numbered)
-   Never run multiple items together on one line.
-
-6. **Headings**: Keep the heading hierarchy (# ## ### ####). Do not change heading levels.
-
-7. **Redaction tags**: Keep `[PERSON_REDACTED]`, `[ADDRESS_REDACTED]`, `[EMAIL_REDACTED]` exactly as-is. Do not remove or alter them.
-
-8. **Preserve all content**: Do NOT summarize, omit, or paraphrase any content.
-
-9. **Audio Transcripts**: Ensure each speaker tag (e.g., `[SPEAKER_00]:`) is treated as a separate paragraph. Do NOT merge them onto the same line.
-
-10. **Output**: Return ONLY the corrected Markdown. No explanations, no preamble.
+Rules:
+- Preserve ALL information.
+- Never summarize.
+- Never omit text.
+- Reconstruct tables using Markdown tables.
+- Merge broken lines into complete paragraphs.
+- Preserve heading hierarchy (#, ##, ###).
+- Preserve ordered and unordered lists.
+- Remove OCR artifacts.
+- Remove processing metadata such as timestamps unless explicitly part of the document.
+- Output ONLY valid Markdown.
 """
 
 FINAL_CHUNK_SUFFIX = """
