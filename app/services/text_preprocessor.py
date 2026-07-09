@@ -369,6 +369,13 @@ def _classify_and_emit(lines: list[str]) -> list[str]:
             i += 1
             continue
 
+        # ── Speaker tag (Audio transcript) ────────────────────────────────────
+        if s.startswith("[SPEAKER_"):
+            _add_blank()
+            out.append(s)
+            i += 1
+            continue
+
         # ── Regular paragraph ─────────────────────────────────────────────────
         out.append(s)
         i += 1

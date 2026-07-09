@@ -53,7 +53,9 @@ SYSTEM_PROMPT = """You are a Vietnamese document formatter. You receive a partia
 
 8. **Preserve all content**: Do NOT summarize, omit, or paraphrase any content.
 
-9. **Output**: Return ONLY the corrected Markdown. No explanations, no preamble.
+9. **Audio Transcripts**: Ensure each speaker tag (e.g., `[SPEAKER_00]:`) is treated as a separate paragraph. Do NOT merge them onto the same line.
+
+10. **Output**: Return ONLY the corrected Markdown. No explanations, no preamble.
 """
 
 FINAL_CHUNK_SUFFIX = """
