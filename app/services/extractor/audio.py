@@ -4,41 +4,14 @@ audio.py
 Audio transcription and speaker diarization using whisperX via CLI.
 """
 
+import requests
 import logging
-import os
-import subprocess
-import tempfile
-import json
-from pathlib import Path
 
 from app.config import get_settings
-from app.models.schemas import AudioExtractionResult, SpeakerSegment
+from app.models.schemas import AudioExtractionResult
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
-
-
-def _build_raw_transcript(segments: list[SpeakerSegment]) -> str:
-    """Format segments into a readable transcript string."""
-    lines = []
-    current_speaker = None
-    buffer = []
-
-    for seg in segments:
-        speaker_label = seg.speaker or "UNKNOWN"
-        if speaker_label != current_speaker:
-            if buffer and current_speaker:
-                lines.append(f"[{current_speaker}]: {' '.join(buffer)}")
-            current_speaker = speaker_label
-            buffer = [seg.text.strip()]
-        else:
-            buffer.append(seg.text.strip())
-
-    if buffer and current_speaker:
-        lines.append(f"[{current_speaker}]: {' '.join(buffer)}")
-
-    return "\n".join(lines)
-
 
 class AudioExtractor:
     """
