@@ -1,89 +1,21 @@
 """
 audio.py
 --------
-Audio transcription using faster-whisper + speaker diarization via pyannote.audio.
-
-Pipeline:
-  1. faster-whisper  → word-level transcript with timestamps
-  2. pyannote.audio  → speaker diarization segments
-  3. Merge           → assign speaker label to each transcript segment
+Audio transcription and speaker diarization using whisperX via CLI.
 """
 
 import logging
 import os
+import subprocess
+import tempfile
+import json
 from pathlib import Path
 
 from app.config import get_settings
 from app.models.schemas import AudioExtractionResult, SpeakerSegment
 
-logger   = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 settings = get_settings()
-
-# ── Lazy imports (heavy ML libraries) ────────────────────────────────────────
-
-def _load_whisper():
-    try:
-        from faster_whisper import WhisperModel
-        return WhisperModel
-    except ImportError:
-        raise ImportError(
-            "faster-whisper is not installed. "
-            "Run: pip install faster-whisper"
-        )
-
-
-def _load_diarization_pipeline():
-    if not settings.huggingface_token:
-        logger.warning(
-            "HF_TOKEN not set — speaker diarization is DISABLED. "
-            "Set HF_TOKEN in .env to enable pyannote.audio."
-        )
-        return None
-    try:
-        from pyannote.audio import Pipeline
-        pipeline = Pipeline.from_pretrained(
-            "pyannote/speaker-diarization-3.1",
-            use_auth_token=settings.huggingface_token,
-        )
-        return pipeline
-    except Exception as exc:
-        logger.warning("Failed to load diarization pipeline: %s", exc)
-        return None
-
-
-def _merge_transcript_and_diarization(
-    whisper_segments: list,
-    diarization,
-) -> list[SpeakerSegment]:
-    """
-    Merge whisper word segments with pyannote speaker diarization turns.
-    Each whisper segment is assigned the speaker label that overlaps most.
-    """
-    merged: list[SpeakerSegment] = []
-
-    for seg in whisper_segments:
-        seg_start = seg.start
-        seg_end   = seg.end
-        seg_text  = seg.text.strip()
-
-        speaker = "UNKNOWN"
-        best_overlap = 0.0
-
-        if diarization is not None:
-            for turn, _, label in diarization.itertracks(yield_label=True):
-                overlap = min(turn.end, seg_end) - max(turn.start, seg_start)
-                if overlap > best_overlap:
-                    best_overlap = overlap
-                    speaker = label
-
-        merged.append(SpeakerSegment(
-            speaker=speaker,
-            start=seg_start,
-            end=seg_end,
-            text=seg_text,
-        ))
-
-    return merged
 
 
 def _build_raw_transcript(segments: list[SpeakerSegment]) -> str:
@@ -93,13 +25,14 @@ def _build_raw_transcript(segments: list[SpeakerSegment]) -> str:
     buffer = []
 
     for seg in segments:
-        if seg.speaker != current_speaker:
+        speaker_label = seg.speaker or "UNKNOWN"
+        if speaker_label != current_speaker:
             if buffer and current_speaker:
                 lines.append(f"[{current_speaker}]: {' '.join(buffer)}")
-            current_speaker = seg.speaker
-            buffer = [seg.text]
+            current_speaker = speaker_label
+            buffer = [seg.text.strip()]
         else:
-            buffer.append(seg.text)
+            buffer.append(seg.text.strip())
 
     if buffer and current_speaker:
         lines.append(f"[{current_speaker}]: {' '.join(buffer)}")
@@ -109,71 +42,79 @@ def _build_raw_transcript(segments: list[SpeakerSegment]) -> str:
 
 class AudioExtractor:
     """
-    Transcribe audio files and optionally diarize speakers.
+    Transcribe audio files and diarize speakers using whisperX CLI.
     """
 
     def __init__(self):
-        self._whisper_model   = None
-        self._diarize_pipeline = None
-
-    def _get_whisper(self):
-        if self._whisper_model is None:
-            WhisperModel = _load_whisper()
-            self._whisper_model = WhisperModel(
-                model_size_or_path=settings.whisper_model_size,
-                device=settings.whisper_device,
-                compute_type=settings.whisper_compute_type,
-            )
-            logger.info(
-                "Loaded Whisper model '%s' on device '%s'",
-                settings.whisper_model_size, settings.whisper_device,
-            )
-        return self._whisper_model
-
-    def _get_diarization(self):
-        if self._diarize_pipeline is None:
-            self._diarize_pipeline = _load_diarization_pipeline()
-        return self._diarize_pipeline
+        self.hf_token = settings.huggingface_token
 
     def extract(self, file_path: str) -> AudioExtractionResult:
         path = Path(file_path).resolve()
-        logger.info("Transcribing audio: %s", path.name)
+        logger.info("Transcribing audio using whisperX: %s", path.name)
 
-        # ── Step 1: Whisper transcription ─────────────────────────────────────
-        model = self._get_whisper()
-        whisper_segments, info = model.transcribe(
-            str(path),
-            beam_size=5,
-            language=None,   # auto-detect
-            word_timestamps=True,
-            vad_filter=True,  # Voice Activity Detection — skip silence
-        )
-        whisper_segments = list(whisper_segments)   # materialize generator
+        if not path.exists():
+            raise FileNotFoundError(f"File not found: {path}")
 
-        logger.info(
-            "Whisper detected language '%s' (%.0f%% confidence), %d segments",
-            info.language, info.language_probability * 100, len(whisper_segments),
-        )
+        if not self.hf_token:
+            logger.warning("HF_TOKEN is not set. Diarization may fail or be disabled.")
 
-        # ── Step 2: Speaker diarization (optional) ────────────────────────────
-        diarization = None
-        diarize_pipeline = self._get_diarization()
-        if diarize_pipeline is not None:
+        # Create a temporary directory for whisperx outputs
+        with tempfile.TemporaryDirectory() as temp_dir:
+            cmd = [
+                "whisperx", str(path),
+                "--language", "vi",
+                "--model", "large-v2",
+                "--align_model", "WAV2VEC2_ASR_LARGE_LV60K_960H",
+                "--diarize",
+                "--output_dir", temp_dir,
+                "--output_format", "json",
+            ]
+            
+            if self.hf_token:
+                cmd.extend(["--hf_token", self.hf_token])
+
+            logger.info("Running whisperX command: %s", " ".join(cmd))
+            
             try:
-                import torch
-                waveform_input = {"uri": path.stem, "audio": str(path)}
-                diarization = diarize_pipeline(waveform_input)
-                logger.info("Speaker diarization complete.")
-            except Exception as exc:
-                logger.warning("Diarization failed: %s", exc)
+                # Run the subprocess
+                result = subprocess.run(
+                    cmd, 
+                    capture_output=True, 
+                    text=True, 
+                    check=True
+                )
+                logger.debug("whisperX stdout: %s", result.stdout)
+            except subprocess.CalledProcessError as exc:
+                logger.error("whisperX failed with exit code %d\nstdout: %s\nstderr: %s", 
+                             exc.returncode, exc.stdout, exc.stderr)
+                raise RuntimeError(f"WhisperX extraction failed: {exc.stderr}") from exc
 
-        # ── Step 3: Merge ──────────────────────────────────────────────────────
-        segments = _merge_transcript_and_diarization(whisper_segments, diarization)
-        transcript = _build_raw_transcript(segments)
+            # The output JSON file will have the same stem as the input file
+            output_json_path = Path(temp_dir) / f"{path.stem}.json"
+            
+            if not output_json_path.exists():
+                logger.error("Expected JSON output not found at %s", output_json_path)
+                raise FileNotFoundError("whisperX did not produce the expected JSON output.")
 
-        logger.info("Audio extraction complete. Transcript length: %d chars", len(transcript))
+            # Parse the JSON output
+            with open(output_json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
 
-        return AudioExtractionResult(
-            raw_transcript=transcript,
-            segments=segments,
-        )
+            raw_segments = data.get("segments", [])
+            segments: list[SpeakerSegment] = []
+
+            for seg in raw_segments:
+                segments.append(SpeakerSegment(
+                    speaker=seg.get("speaker", "UNKNOWN"),
+                    start=float(seg.get("start", 0.0)),
+                    end=float(seg.get("end", 0.0)),
+                    text=seg.get("text", "").strip()
+                ))
+
+            transcript = _build_raw_transcript(segments)
+            logger.info("Audio extraction complete. Transcript length: %d chars", len(transcript))
+
+            return AudioExtractionResult(
+                raw_transcript=transcript,
+                segments=segments,
+            )
