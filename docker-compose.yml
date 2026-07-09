@@ -26,7 +26,7 @@ services:
       - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672//
-      - UNSTRUCTURED_URL=http://unstructured:8000
+      - TIKA_URL=http://tika:9998
     volumes:
       - uploads_data:/app/app/storage/uploads
     depends_on:
@@ -52,7 +52,7 @@ services:
     environment:
       - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - UNSTRUCTURED_URL=http://unstructured:8000
+      - TIKA_URL=http://tika:9998
     volumes:
       - uploads_data:/app/app/storage/uploads
     depends_on:
@@ -60,7 +60,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      unstructured:
+      tika:
         condition: service_started
     restart: unless-stopped
     # Scale workers with: docker compose up --scale worker=3
@@ -99,21 +99,19 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── Unstructured API ──────────────────────────────────────────────────────────
-  unstructured:
-    image: downloads.unstructured.io/unstructured-io/unstructured-api:latest
-    container_name: doc_intelligence_unstructured
+  # ── Apache Tika ───────────────────────────────────────────────────────────────
+  tika:
+    image: apache/tika:latest-full
+    container_name: doc_intelligence_tika
     ports:
-      - "8001:8000"  # map host 8001 to container 8000 to avoid conflicting with our API
-    environment:
-      - HF_TOKEN=${HF_TOKEN}
+      - "9998:9998"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/healthcheck"]
+      test: ["CMD", "curl", "-f", "http://localhost:9998/version"]
       interval: 20s
-      timeout: 15s
-      retries: 10
-      start_period: 90s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
 # ── Volumes ───────────────────────────────────────────────────────────────────
 volumes:
