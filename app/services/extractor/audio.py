@@ -49,58 +49,20 @@ class AudioExtractor:
         self.hf_token = settings.huggingface_token
 
     def extract(self, file_path: str) -> AudioExtractionResult:
-        path = Path(file_path).resolve()
-        logger.info("Transcribing audio using whisperX: %s", path.name)
+        url = "http://103.82.20.31:8080/transcribe"
 
-        if not path.exists():
-            raise FileNotFoundError(f"File not found: {path}")
-
-        if not self.hf_token:
-            logger.warning("HF_TOKEN is not set. Diarization may fail or be disabled.")
-
-        # Set output directory to the same folder as the input file
-        output_dir = path.parent
-
-        cmd = [
-            "whisperx", str(path),
-            "--language", "vi",
-            "--model", "large-v2",
-            "--align_model", "WAV2VEC2_ASR_LARGE_LV60K_960H",
-            "--diarize",
-            "--output_dir", str(output_dir),
-            "--output_format", "txt",
-        ]
-        
-        if self.hf_token:
-            cmd.extend(["--hf_token", self.hf_token])
-
-        logger.info("Running whisperX command: %s", " ".join(cmd))
-        
-        try:
-            # Run the subprocess
-            result = subprocess.run(
-                cmd, 
-                capture_output=True, 
-                text=True, 
-                check=True
+        with open(file_path, "rb") as f:
+            response = requests.post(
+                url,
+                files={
+                    "file": (file_path, f, "audio/mpeg")
+                },
+                timeout=3600,  # 1 giờ
             )
-            logger.debug("whisperX stdout: %s", result.stdout)
-        except subprocess.CalledProcessError as exc:
-            logger.error("whisperX failed with exit code %d\nstdout: %s\nstderr: %s", 
-                            exc.returncode, exc.stdout, exc.stderr)
-            raise RuntimeError(f"WhisperX extraction failed: {exc.stderr}") from exc
 
-        # The output TXT file will have the same stem as the input file
-        output_txt_path = output_dir / f"{path.stem}.txt"
-        
-        if not output_txt_path.exists():
-            logger.error("Expected TXT output not found at %s", output_txt_path)
-            raise FileNotFoundError("whisperX did not produce the expected TXT output.")
+        response.raise_for_status()
 
-        # Read the raw text output
-        transcript = output_txt_path.read_text(encoding="utf-8").strip()
-
-        logger.info("Audio extraction complete. Transcript length: %d chars", len(transcript))
+        transcript = response.text
 
         return AudioExtractionResult(
             raw_transcript=transcript,
