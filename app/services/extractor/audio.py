@@ -1,11 +1,13 @@
 """
 audio.py
 --------
-Audio transcription and speaker diarization using whisperX via CLI.
+Audio transcription and speaker diarization using WhisperX REST API.
 """
 
-import requests
+from pathlib import Path
 import logging
+
+import requests
 
 from app.config import get_settings
 from app.models.schemas import AudioExtractionResult
@@ -13,24 +15,29 @@ from app.models.schemas import AudioExtractionResult
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
+
 class AudioExtractor:
     """
-    Transcribe audio files and diarize speakers using whisperX CLI.
+    Transcribe audio files using WhisperX REST API.
     """
 
     def __init__(self):
-        self.hf_token = settings.huggingface_token
+        self.url = "http://103.82.20.31:8080/transcribe"
 
     def extract(self, file_path: str) -> AudioExtractionResult:
-        url = "http://103.82.20.31:8080/transcribe"
+        filename = Path(file_path).name
 
         with open(file_path, "rb") as f:
             response = requests.post(
-                url,
+                self.url,
                 files={
-                    "file": (file_path, f, "audio/mpeg")
+                    "file": (
+                        filename,      # Chỉ gửi tên file
+                        f,
+                        "audio/mpeg",
+                    )
                 },
-                timeout=3600,  # 1 giờ
+                timeout=3600,
             )
 
         response.raise_for_status()
@@ -39,5 +46,5 @@ class AudioExtractor:
 
         return AudioExtractionResult(
             raw_transcript=transcript,
-            segments=[],  # No structured segments when parsing from raw txt
+            segments=[],
         )
