@@ -58,63 +58,51 @@ class AudioExtractor:
         if not self.hf_token:
             logger.warning("HF_TOKEN is not set. Diarization may fail or be disabled.")
 
-        # Create a temporary directory for whisperx outputs
-        with tempfile.TemporaryDirectory() as temp_dir:
-            cmd = [
-                "whisperx", str(path),
-                "--language", "vi",
-                "--model", "large-v2",
-                "--align_model", "WAV2VEC2_ASR_LARGE_LV60K_960H",
-                "--diarize",
-                "--output_dir", temp_dir,
-                "--output_format", "json",
-            ]
-            
-            if self.hf_token:
-                cmd.extend(["--hf_token", self.hf_token])
+        # Set output directory to the same folder as the input file
+        output_dir = path.parent
 
-            logger.info("Running whisperX command: %s", " ".join(cmd))
-            
-            try:
-                # Run the subprocess
-                result = subprocess.run(
-                    cmd, 
-                    capture_output=True, 
-                    text=True, 
-                    check=True
-                )
-                logger.debug("whisperX stdout: %s", result.stdout)
-            except subprocess.CalledProcessError as exc:
-                logger.error("whisperX failed with exit code %d\nstdout: %s\nstderr: %s", 
-                             exc.returncode, exc.stdout, exc.stderr)
-                raise RuntimeError(f"WhisperX extraction failed: {exc.stderr}") from exc
+        cmd = [
+            "whisperx", str(path),
+            "--language", "vi",
+            "--model", "large-v2",
+            "--align_model", "WAV2VEC2_ASR_LARGE_LV60K_960H",
+            "--diarize",
+            "--output_dir", str(output_dir),
+            "--output_format", "txt",
+        ]
+        
+        if self.hf_token:
+            cmd.extend(["--hf_token", self.hf_token])
 
-            # The output JSON file will have the same stem as the input file
-            output_json_path = Path(temp_dir) / f"{path.stem}.json"
-            
-            if not output_json_path.exists():
-                logger.error("Expected JSON output not found at %s", output_json_path)
-                raise FileNotFoundError("whisperX did not produce the expected JSON output.")
-
-            # Parse the JSON output
-            with open(output_json_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-
-            raw_segments = data.get("segments", [])
-            segments: list[SpeakerSegment] = []
-
-            for seg in raw_segments:
-                segments.append(SpeakerSegment(
-                    speaker=seg.get("speaker", "UNKNOWN"),
-                    start=float(seg.get("start", 0.0)),
-                    end=float(seg.get("end", 0.0)),
-                    text=seg.get("text", "").strip()
-                ))
-
-            transcript = _build_raw_transcript(segments)
-            logger.info("Audio extraction complete. Transcript length: %d chars", len(transcript))
-
-            return AudioExtractionResult(
-                raw_transcript=transcript,
-                segments=segments,
+        logger.info("Running whisperX command: %s", " ".join(cmd))
+        
+        try:
+            # Run the subprocess
+            result = subprocess.run(
+                cmd, 
+                capture_output=True, 
+                text=True, 
+                check=True
             )
+            logger.debug("whisperX stdout: %s", result.stdout)
+        except subprocess.CalledProcessError as exc:
+            logger.error("whisperX failed with exit code %d\nstdout: %s\nstderr: %s", 
+                            exc.returncode, exc.stdout, exc.stderr)
+            raise RuntimeError(f"WhisperX extraction failed: {exc.stderr}") from exc
+
+        # The output TXT file will have the same stem as the input file
+        output_txt_path = output_dir / f"{path.stem}.txt"
+        
+        if not output_txt_path.exists():
+            logger.error("Expected TXT output not found at %s", output_txt_path)
+            raise FileNotFoundError("whisperX did not produce the expected TXT output.")
+
+        # Read the raw text output
+        transcript = output_txt_path.read_text(encoding="utf-8").strip()
+
+        logger.info("Audio extraction complete. Transcript length: %d chars", len(transcript))
+
+        return AudioExtractionResult(
+            raw_transcript=transcript,
+            segments=[],  # No structured segments when parsing from raw txt
+        )
