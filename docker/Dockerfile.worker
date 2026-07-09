@@ -24,7 +24,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # ── Python dependencies ───────────────────────────────────────────────────────
 WORKDIR /app
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && \
+    uv tool install whisperx && \
+    ln -s /root/.local/bin/whisperx /usr/local/bin/whisperx
 
 # ── Application code ──────────────────────────────────────────────────────────
 COPY . .

@@ -22,8 +22,8 @@ httpx==0.27.0
 # ── Document Extraction ───────────────────────────────────────────────────────
 # (Now fully handled via the Unstructured.io API Docker container using httpx)
 
-# ── Audio Extraction ──────────────────────────────────────────────────────────
-whisperx @ git+https://github.com/m-bain/whisperx.git
+# whisperX is executed via `uv run` as an external subprocess to avoid dependency conflicts.
+uv==0.5.13
 
 # ── PII Redaction ─────────────────────────────────────────────────────────────
 gliner==0.2.7                   # Multilingual NER for PII detection (stable API)
