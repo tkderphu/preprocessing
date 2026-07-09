@@ -1,0 +1,4 @@
+# requirements.txt
+groq
+python-dotenv
+PyPDF2

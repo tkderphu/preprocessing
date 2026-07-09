@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     # ── Groq ──────────────────────────────────────────────────────────────────
     groq_api_key: str = ""
     groq_model: str = "llama3-8b-8192" # default fast model on Groq
+    groq_chunk_size: int = 6000        # max characters per chunk sent to Groq
 
     # ── Email (SMTP) ──────────────────────────────────────────────────────────
     smtp_host: str = "smtp.gmail.com"
