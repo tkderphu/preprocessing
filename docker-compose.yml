@@ -27,6 +27,7 @@ services:
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672//
       - TIKA_URL=http://tika:9998
+      - WHISPER_TRANSCRIBE_URL=http://whisperx:8080/transcribe
     volumes:
       - uploads_data:/app/app/storage/uploads
     depends_on:
@@ -53,6 +54,7 @@ services:
       - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - TIKA_URL=http://tika:9998
+      - WHISPER_TRANSCRIBE_URL=http://whisperx:8080/transcribe
     volumes:
       - uploads_data:/app/app/storage/uploads
     depends_on:
@@ -112,6 +114,21 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
+
+# ── WhisperX ───────────────────────────────────────────────────────────────────
+  whisperx:
+    build:
+      context: ./whisperx
+      dockerfile: docker/Dockerfile.whisperx
+    container_name: doc_intelligence_whisperx
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      - HF_TOKEN=${HF_TOKEN}
+      - DEVICE=${DEVICE}
+    restart: unless-stopped
 
 # ── Volumes ───────────────────────────────────────────────────────────────────
 volumes:

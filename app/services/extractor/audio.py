@@ -6,6 +6,7 @@ Audio transcription and speaker diarization using WhisperX REST API.
 
 from pathlib import Path
 import logging
+import os
 
 import requests
 
@@ -14,7 +15,7 @@ from app.models.schemas import AudioExtractionResult
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
-
+WHISPER_URL = os.get("WHISPER_TRANSCRIBE_URL", "http://whisperx:8080/transcribe") 
 
 class AudioExtractor:
     """
@@ -22,7 +23,7 @@ class AudioExtractor:
     """
 
     def __init__(self):
-        self.url = "http://103.82.20.31:8080/transcribe"
+        self.url = WHISPER_URL
 
     def extract(self, file_path: str) -> AudioExtractionResult:
         filename = Path(file_path).name
