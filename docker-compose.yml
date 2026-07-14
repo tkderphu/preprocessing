@@ -119,7 +119,7 @@ services:
   whisperx:
     build:
       context: ./whisperx
-      dockerfile: docker/Dockerfile.whisperx
+      dockerfile: Dockerfile
     container_name: doc_intelligence_whisperx
     ports:
       - "8080:8080"
