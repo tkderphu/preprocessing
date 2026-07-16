@@ -25,7 +25,7 @@ from app.services.extractor.factory import extract
 from app.services.redaction import get_redaction_service
 from app.services.formatter import MarkdownFormatter
 from app.services.mailer import MailService
-from app.services.github_pusher import GitHubPusher
+from app.services.gitlab_pusher import GitLabPusher
 from app.config import get_settings
 
 logger   = logging.getLogger(__name__)
@@ -34,7 +34,7 @@ settings = get_settings()
 # Module-level singletons (initialized once per worker process)
 _formatter: MarkdownFormatter | None = None
 _mailer:    MailService       | None = None
-_pusher:    GitHubPusher      | None = None
+_pusher:    GitLabPusher      | None = None
 
 
 def _get_formatter() -> MarkdownFormatter:
@@ -51,10 +51,10 @@ def _get_mailer() -> MailService:
     return _mailer
 
 
-def _get_pusher() -> GitHubPusher:
+def _get_pusher() -> GitLabPusher:
     global _pusher
     if _pusher is None:
-        _pusher = GitHubPusher()
+        _pusher = GitLabPusher()
     return _pusher
 
 
@@ -128,18 +128,18 @@ def process_document_job(self: Task, job_message_json: str) -> dict:
             # Non-fatal — log and continue
             logger.warning("Email delivery failed (non-fatal): %s", mail_exc)
 
-        # ── 6. Push to GitHub ────────────────────────────────────────────────
-        self.update_state(state="PROGRESS", meta={"step": "github_push"})
-        github_url = ""
+        # ── 6. Push to GitLab ────────────────────────────────────────────────
+        self.update_state(state="PROGRESS", meta={"step": "gitlab_push"})
+        gitlab_url = ""
         try:
-            github_url = _get_pusher().push(
+            gitlab_url = _get_pusher().push(
                 job_id=job.job_id,
                 file_name=job.file_name,
                 markdown=markdown,
             )
-        except Exception as gh_exc:
+        except Exception as gl_exc:
             # Non-fatal — log and continue
-            logger.warning("GitHub push failed (non-fatal): %s", gh_exc)
+            logger.warning("GitLab push failed (non-fatal): %s", gl_exc)
 
         # ── Done ─────────────────────────────────────────────────────────────
         completed_at = datetime.now(timezone.utc).isoformat()
@@ -149,7 +149,7 @@ def process_document_job(self: Task, job_message_json: str) -> dict:
             "job_id":       job.job_id,
             "file_name":    job.file_name,
             "markdown":     markdown,
-            "github_url":   github_url,
+            "gitlab_url":   gitlab_url,
             "completed_at": completed_at,
         }
 

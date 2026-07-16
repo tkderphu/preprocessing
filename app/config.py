@@ -53,11 +53,12 @@ class Settings(BaseSettings):
     mail_from: str = ""
     mail_to: str = ""          # default recipient; overridden per-job if provided
 
-    # ── GitHub ────────────────────────────────────────────────────────────────
-    github_token: str = ""
-    github_repo: str = ""      # format: "owner/repo-name"
-    github_branch: str = "main"
-    github_output_path: str = "outputs"   # folder inside repo
+    # ── GitLab ────────────────────────────────────────────────────────────────
+    gitlab_url: str = "https://workspace.codluck.com"
+    gitlab_token: str = ""
+    gitlab_project_id: str = "343"  # ID or "namespace/project-name"
+    gitlab_branch: str = "main"
+    gitlab_output_path: str = "outputs"   # folder inside repo
 
 
 @lru_cache
