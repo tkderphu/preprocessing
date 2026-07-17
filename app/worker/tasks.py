@@ -9,7 +9,7 @@ Pipeline (single chained task):
   3. Format to MD  (Qwen2.5)
   4. Save .md file
   5. Send email    (aiosmtplib)
-  6. Push to GitHub (PyGitHub)
+  6. Push to GitLab (httpx)
 """
 
 import json
@@ -77,7 +77,7 @@ def process_document_job(self: Task, job_message_json: str) -> dict:
     Returns
     -------
     dict
-        {job_id, file_name, markdown, github_url, completed_at}
+        {job_id, file_name, markdown, gitlab_url, completed_at}
         Stored in Redis result backend, retrievable by /jobs/{job_id}.
     """
     job = JobMessage.model_validate_json(job_message_json)

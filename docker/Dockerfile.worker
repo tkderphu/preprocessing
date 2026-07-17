@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ \
     libffi-dev \
     libssl-dev \
-    # Git (for PyGitHub / subprocess fallback)
+    # Git (for GitLab / subprocess fallback)
     git \
     curl \
     && rm -rf /var/lib/apt/lists/*

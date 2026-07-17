@@ -48,7 +48,7 @@ def _detect_file_type(filename: str) -> FileType:
 async def upload_file(
     file:            UploadFile = File(..., description="Audio / PDF / DOCX file"),
     recipient_email: str        = Form(default="", description="Override recipient email"),
-    github_branch:   str        = Form(default="", description="Override GitHub branch"),
+    gitlab_branch:   str        = Form(default="", description="Override GitLab branch"),
 ):
     """
     Upload a file. The server will:
@@ -64,7 +64,7 @@ async def upload_file(
         file_name=file.filename,
         file_type=file_type,
         recipient_email=recipient_email or settings.mail_to,
-        github_branch=github_branch or settings.github_branch,
+        gitlab_branch=gitlab_branch or settings.gitlab_branch,
         file_path="",   # will be set after save
     )
 

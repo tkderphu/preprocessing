@@ -38,7 +38,7 @@ class JobMessage(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     # Optional per-job overrides
     recipient_email: str  = ""
-    github_branch:   str  = ""
+    gitlab_branch:   str  = ""
 
 
 # ── Upload API ────────────────────────────────────────────────────────────────

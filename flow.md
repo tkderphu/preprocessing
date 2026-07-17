@@ -10,7 +10,7 @@ Using python and fastapi to create an application that can extract data from aud
 4. extract data based audio/docs/pdf
 5. redact pii
 6. formatting data to markdown: source, meeting date, participants
-7. send mail and auto push to github
+7. send mail and auto push to gitlab
 
 For audio files, use whisper + diarization
 For docs/pdf files, use apache tika and tesseract ocr

@@ -1,6 +1,6 @@
 # 📄 Document Intelligence Pipeline
 
-A production-ready **FastAPI + Celery + RabbitMQ** pipeline that processes audio recordings and documents (PDF/DOCX), extracts content, redacts PII, formats to structured Markdown, then delivers results via email and GitHub.
+A production-ready **FastAPI + Celery + RabbitMQ** pipeline that processes audio recordings and documents (PDF/DOCX), extracts content, redacts PII, formats to structured Markdown, then delivers results via email and GitLab.
 
 ---
 
@@ -23,7 +23,7 @@ Client ──POST /upload──► FastAPI API ──► RabbitMQ ──► Cele
                                    │
                     ┌──────────────┴──────────────┐
                     │                             │
-              Email (SMTP)              GitHub Push (PAT)
+              Email (SMTP)              GitLab Push (Token)
 ```
 
 ---
@@ -42,7 +42,7 @@ Client ──POST /upload──► FastAPI API ──► RabbitMQ ──► Cele
 | PII Redaction | GLiNER (multilingual NER) + regex |
 | Markdown Formatting | Qwen2.5 via Ollama |
 | Email Delivery | aiosmtplib (Gmail / SMTP) |
-| GitHub Push | PyGitHub |
+| GitLab Push | httpx |
 
 ---
 
@@ -104,7 +104,7 @@ curl http://localhost:8000/api/v1/jobs/abc123
 |---|---|---|
 | `file` | file | Audio (mp3/wav/m4a/ogg) or PDF/DOCX |
 | `recipient_email` | string (opt) | Override recipient email |
-| `github_branch` | string (opt) | Override GitHub branch |
+| `gitlab_branch` | string (opt) | Override GitLab branch |
 
 ---
 
@@ -170,8 +170,8 @@ Each processed file is formatted as:
 | `QWEN_MODEL` | `qwen2.5:7b` | Ollama model name |
 | `QWEN_API_URL` | — | External API URL (overrides Ollama) |
 | `SMTP_HOST` | `smtp.gmail.com` | SMTP server |
-| `GITHUB_REPO` | — | `owner/repo` |
-| `GITHUB_TOKEN` | — | PAT with repo scope |
+| `GITLAB_PROJECT_ID` | — | project ID or namespace/repo |
+| `GITLAB_TOKEN` | — | Access token |
 
 ---
 

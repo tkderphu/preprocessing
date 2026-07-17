@@ -38,7 +38,7 @@ def create_app() -> FastAPI:
         version=settings.app_version,
         description=(
             "Document & Audio Intelligence Pipeline — "
-            "Extract, redact PII, format to Markdown, deliver via email & GitHub."
+            "Extract, redact PII, format to Markdown, deliver via email & GitLab."
         ),
         docs_url="/docs",
         redoc_url="/redoc",
