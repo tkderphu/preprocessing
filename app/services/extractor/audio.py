@@ -15,7 +15,7 @@ from app.models.schemas import AudioExtractionResult
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
-WHISPER_URL = os.get("WHISPER_TRANSCRIBE_URL", "http://whisperx:8080/transcribe") 
+WHISPER_URL = os.getenv("WHISPER_TRANSCRIBE_URL", "http://whisperx:8080/transcribe") 
 
 class AudioExtractor:
     """
